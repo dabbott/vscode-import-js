@@ -1,32 +1,150 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-var vscode = require('vscode');
-var spawn = require('child_process').spawn;
-var exec = require('child_process').exec;
+const vscode = require('vscode');
+const {Position, Range, TextEdit, WorkspaceEdit} = vscode;
+
+const spawn = require('child_process').spawn;
+const exec = require('child_process').exec;
+const diff = require('diff');
+
+const newlineRegex = /\r\n|\n|\r/g;
 
 // const currentFilePath = require('./lib/currentFilePath');
-const withModuleFinder = require('./lib/withModuleFinder');
+// const withModuleFinder = require('./lib/withModuleFinder');
 
 let daemon = null;
 
+function activeEditor() {
+  return vscode.window.activeTextEditor;
+}
+
+function currentDocument() {
+  return activeEditor().document;
+}
+
 function currentFilePath() {
-  return vscode.window.activeTextEditor.document.fileName;
+  return currentDocument().fileName;
 }
 
 function currentFileContents() {
-  return vscode.window.activeTextEditor.document.getText()
+  return currentDocument().getText();
+}
+
+function replaceFileContentsViaDiff(text) {
+  const currentText = currentFileContents();
+
+  if (text === currentText) return;
+
+  // const lines = currentText.split('\n');
+
+  // const documentStart = new Position(0, 0);
+  // const documentEnd = new Position(lines.length - 1, lines[lines.length - 1].length);
+  // const range = new Range(documentStart, documentEnd);
+
+  // From Atom TextBuffer
+  // https://github.com/atom/text-buffer/blob/141e35614ff4a0bed3c113782ee58029a53de775/src/text-buffer.coffee#L640
+
+  const endsWithNewline = (str) => /[\r\n]+$/g.test(str);
+
+  const computeBufferColumn = (str) => {
+    const newlineIndex = Math.max(
+      str.lastIndexOf('\n'),
+      str.lastIndexOf('\r')
+    );
+
+    if (endsWithNewline(str)) {
+      return 0;
+    } else if (newlineIndex === -1) {
+      return str.length;
+    } else {
+      return str.length - newlineIndex - 1;
+    }
+  }
+
+  const workspaceEdit = new WorkspaceEdit();
+
+  let row = 0
+  let column = 0
+  const currentPosition = [0, 0]
+
+  const lineDiff = diff.diffLines(currentText, text)
+  const edits = [];
+
+  lineDiff.forEach(change => {
+
+    // Using change.count does not account for lone carriage-returns
+    const match = change.value.match(newlineRegex)
+    const lineCount = match ? match.length : 0
+
+    currentPosition[0] = row
+    currentPosition[1] = column
+
+    if (change.added) {
+      row += lineCount;
+      column = computeBufferColumn(change.value);
+      const range = new Range(
+        new Position(row, column),
+        new Position(row, column)
+      )
+      edits.push(new TextEdit(range, change.value))
+
+    } else if (change.removed) {
+      const endRow = row + lineCount;
+      const endColumn = column + computeBufferColumn(change.value);
+      const range = new Range(
+        new Position(row, column),
+        new Position(endRow, endColumn)
+      )
+      edits.push(new TextEdit(range, ''))
+    } else {
+      row += lineCount;
+      column = computeBufferColumn(change.value);
+    }
+  });
+
+  console.log('edits', edits);
+
+  workspaceEdit.set(currentDocument().uri, edits);
+
+  vscode.workspace.applyEdit(workspaceEdit);
+}
+
+function replaceFileContents(text) {
+  const uri = currentDocument().uri;
+
+  const documentStart = new Position(0, 0);
+  const documentEnd = new Position(1, 0);
+  const range = new Range(documentStart, documentEnd);
+
+  const workspaceEdit = new WorkspaceEdit();
+  workspaceEdit.replace(uri, range, 'Hello\n\n');
+
+  vscode.workspace.applyEdit(workspaceEdit);
+
+  // const lines = currentFileContents().split('\n');
+
+  // const documentStart = new Position(0, 0);
+  // const documentEnd = new Position(lines.length - 1, lines[lines.length - 1].length);
+  // const range = new Range(documentStart, documentEnd);
+
+  // const workspaceEdit = new WorkspaceEdit();
+  // // const textEdit = new TextEdit(range, text);
+  // // workspaceEdit.set(uri, [textEdit]);
+  // workspaceEdit.replace(uri, range, text);
+
+  // vscode.workspace.applyEdit(workspaceEdit);
 }
 
 // https://github.com/codemirror/CodeMirror/blob/master/mode/javascript/javascript.js#L25
 const wordRE = /[\w$\xa1-\uffff]+/
 
 function currentWord() {
-  const position = vscode.window.activeTextEditor.selection.active
-  const range = vscode.window.activeTextEditor.document.getWordRangeAtPosition(position, wordRE)
+  const position = activeEditor().selection.active
+  const range = currentDocument().getWordRangeAtPosition(position, wordRE)
 
   if (!range) { return null }
 
-  return vscode.window.activeTextEditor.document.getText(range)
+  return currentDocument().getText(range)
 }
 
 function projectDirectoryPath() {
@@ -59,6 +177,25 @@ function projectDirectoryPath() {
 
 //     console.log('started child')
 // }
+
+function handleMessage(data) {
+  let json
+  try {
+    json = JSON.parse(data)
+  } catch (e) {
+    console.log('Failed to parse json', data.slice(0, 80))
+    return
+  }
+
+  const {messages, fileContent, unresolvedImports} = json
+
+  console.log('Message', json)
+
+  if (typeof fileContent === 'string') {
+    // replaceFileContents(fileContent)
+    replaceFileContentsViaDiff(fileContent)
+  }
+}
 
 function run(edit, args = {}) {
   const {cmd} = args
@@ -152,9 +289,7 @@ function activate(context) {
       // env: {},
     });
 
-    daemon.stdout.on('data', (data) => {
-        console.log(`stdout: ${data}`);
-    });
+    daemon.stdout.on('data', handleMessage)
 
     daemon.stderr.on('data', (data) => {
         console.log(`stderr: ${data}`);
