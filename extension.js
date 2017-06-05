@@ -5,12 +5,8 @@ const {Position, Range, TextEdit, WorkspaceEdit} = vscode;
 
 const spawn = require('child_process').spawn;
 const exec = require('child_process').exec;
-const diff = require('diff');
 
-const newlineRegex = /\r\n|\n|\r/g;
-
-// const currentFilePath = require('./lib/currentFilePath');
-// const withModuleFinder = require('./lib/withModuleFinder');
+const textEditsForDiff = require('./lib/textEditsForDiff');
 
 let daemon = null;
 
@@ -30,81 +26,16 @@ function currentFileContents() {
   return currentDocument().getText();
 }
 
-function replaceFileContentsViaDiff(text) {
+function replaceFileContentsViaDiff(newText) {
   const currentText = currentFileContents();
 
-  if (text === currentText) return;
+  if (currentText === newText) return;
 
-  // const lines = currentText.split('\n');
-
-  // const documentStart = new Position(0, 0);
-  // const documentEnd = new Position(lines.length - 1, lines[lines.length - 1].length);
-  // const range = new Range(documentStart, documentEnd);
-
-  // From Atom TextBuffer
-  // https://github.com/atom/text-buffer/blob/141e35614ff4a0bed3c113782ee58029a53de775/src/text-buffer.coffee#L640
-
-  const endsWithNewline = (str) => /[\r\n]+$/g.test(str);
-
-  const computeBufferColumn = (str) => {
-    const newlineIndex = Math.max(
-      str.lastIndexOf('\n'),
-      str.lastIndexOf('\r')
-    );
-
-    if (endsWithNewline(str)) {
-      return 0;
-    } else if (newlineIndex === -1) {
-      return str.length;
-    } else {
-      return str.length - newlineIndex - 1;
-    }
-  }
+  const textEdits = textEditsForDiff(currentText, newText);
+  console.log('TextEdits', textEdits);
 
   const workspaceEdit = new WorkspaceEdit();
-
-  let row = 0
-  let column = 0
-  const currentPosition = [0, 0]
-
-  const lineDiff = diff.diffLines(currentText, text)
-  const edits = [];
-
-  lineDiff.forEach(change => {
-
-    // Using change.count does not account for lone carriage-returns
-    const match = change.value.match(newlineRegex)
-    const lineCount = match ? match.length : 0
-
-    currentPosition[0] = row
-    currentPosition[1] = column
-
-    if (change.added) {
-      row += lineCount;
-      column = computeBufferColumn(change.value);
-      const range = new Range(
-        new Position(row, column),
-        new Position(row, column)
-      )
-      edits.push(new TextEdit(range, change.value))
-
-    } else if (change.removed) {
-      const endRow = row + lineCount;
-      const endColumn = column + computeBufferColumn(change.value);
-      const range = new Range(
-        new Position(row, column),
-        new Position(endRow, endColumn)
-      )
-      edits.push(new TextEdit(range, ''))
-    } else {
-      row += lineCount;
-      column = computeBufferColumn(change.value);
-    }
-  });
-
-  console.log('edits', edits);
-
-  workspaceEdit.set(currentDocument().uri, edits);
+  workspaceEdit.set(currentDocument().uri, textEdits);
 
   vscode.workspace.applyEdit(workspaceEdit);
 }
