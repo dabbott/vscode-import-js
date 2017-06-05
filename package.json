@@ -17,8 +17,30 @@
     "main": "./extension",
     "contributes": {
         "commands": [{
-            "command": "extension.sayHello",
-            "title": "Hello World"
+            "command": "importjs.word",
+            "title": "ImportJS: Import module"
+        }, {
+            "command": "importjs.goto",
+            "title": "ImportJS: Go to module"
+        }, {
+            "command": "importjs.fix",
+            "title": "ImportJS: Fix imports"
+        }],
+        "keybindings": [{
+            "command": "importjs.word",
+            "key": "ctrl+shift+j",
+            "mac": "cmd+shift+j",
+            "when": "editorTextFocus"
+        }, {
+            "command": "importjs.goto",
+            "key": "ctrl+shift+k",
+            "mac": "cmd+shift+k",
+            "when": "editorTextFocus"
+        }, {
+            "command": "importjs.fix",
+            "key": "ctrl+shift+i",
+            "mac": "cmd+shift+i",
+            "when": "editorTextFocus"
         }]
     },
     "scripts": {
