@@ -19,7 +19,7 @@
     "commands": [
       {
         "command": "importjs.word",
-        "title": "ImportJS: Import module"
+        "title": "ImportJS: Import word under cursor"
       },
       {
         "command": "importjs.goto",

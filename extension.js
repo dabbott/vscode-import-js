@@ -26,7 +26,7 @@ function currentFileContents() {
   return currentDocument().getText();
 }
 
-function replaceFileContentsViaDiff(newText) {
+function syncFileContents(newText) {
   const currentText = currentFileContents();
 
   if (currentText === newText) return;
@@ -38,32 +38,6 @@ function replaceFileContentsViaDiff(newText) {
   workspaceEdit.set(currentDocument().uri, textEdits);
 
   vscode.workspace.applyEdit(workspaceEdit);
-}
-
-function replaceFileContents(text) {
-  const uri = currentDocument().uri;
-
-  const documentStart = new Position(0, 0);
-  const documentEnd = new Position(1, 0);
-  const range = new Range(documentStart, documentEnd);
-
-  const workspaceEdit = new WorkspaceEdit();
-  workspaceEdit.replace(uri, range, 'Hello\n\n');
-
-  vscode.workspace.applyEdit(workspaceEdit);
-
-  // const lines = currentFileContents().split('\n');
-
-  // const documentStart = new Position(0, 0);
-  // const documentEnd = new Position(lines.length - 1, lines[lines.length - 1].length);
-  // const range = new Range(documentStart, documentEnd);
-
-  // const workspaceEdit = new WorkspaceEdit();
-  // // const textEdit = new TextEdit(range, text);
-  // // workspaceEdit.set(uri, [textEdit]);
-  // workspaceEdit.replace(uri, range, text);
-
-  // vscode.workspace.applyEdit(workspaceEdit);
 }
 
 // https://github.com/codemirror/CodeMirror/blob/master/mode/javascript/javascript.js#L25
@@ -82,33 +56,6 @@ function projectDirectoryPath() {
   return vscode.workspace.rootPath;
 }
 
-// function importWord(word, currentFilePath) {
-//     // if (daemon) {
-//     //     daemon.stdin.write('word currentFilePath /Users/devin_abbott/Projects/vscode-import-js/extension.js\n')
-//     // }
-//     // let child = spawn('importjs', ['word', 'currentFilePath', '/Users/devin_abbott/Projects/vscode-import-js/extension.js'])
-//     let child = spawn('importjs', ['word', 'currentFilePath', './extension.js'], {
-//         cwd: '/Users/devin_abbott/Projects/vscode-import-js',
-//     })
-
-//     child.on('close', (code, signal) => {
-//         console.log('exit with', code, signal)
-//     })
-
-//     child.on('error', (err) => {
-//         console.log('err', err)
-//     })
-
-//     child.stdout.on('data', (data) => {
-//         console.log('data', data.toString())
-//     })
-//     child.stderr.on('data', (data) => {
-//         console.log('data', data.toString())
-//     })
-
-//     console.log('started child')
-// }
-
 function handleMessage(data) {
   let json
   try {
@@ -118,13 +65,34 @@ function handleMessage(data) {
     return
   }
 
-  const {messages, fileContent, unresolvedImports} = json
+  console.log('Message', json);
 
-  console.log('Message', json)
+  const {messages, fileContent, unresolvedImports, error, goto} = json
 
-  if (typeof fileContent === 'string') {
-    // replaceFileContents(fileContent)
-    replaceFileContentsViaDiff(fileContent)
+  if ('error' in json) {
+    console.log('Error executing importjs', error);
+    return;
+  }
+
+  if ('messages' in json && messages.length) {
+    vscode.window.showInformationMessage(messages.join('\n'));
+  }
+
+  // if ('unresolvedImports' in json) {
+  //   // TODO prompt user
+  //   return;
+  // }
+
+  if ('goto' in json) {
+    console.log('opening', goto);
+    vscode.workspace.openTextDocument(goto).then(document => {
+      vscode.window.showTextDocument(document);
+    })
+    return;
+  }
+
+  if ('fileContent' in json) {
+    syncFileContents(fileContent)
   }
 }
 
@@ -181,43 +149,26 @@ function run(edit, args = {}) {
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 function activate(context) {
-
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
-    console.log('Congratulations, your extension "vscode-import-js" is now active!');
-
-    // The command has been defined in the package.json file
-    // Now provide the implementation of the command with  registerCommand
-    // The commandId parameter must match the command field in package.json
-    var disposable = vscode.commands.registerCommand('importjs.word', function () {
-        // The code you place here will be executed every time your command is executed
-
+    context.subscriptions.push(
+      vscode.commands.registerCommand('importjs.word', () => {
         run(null, {cmd: 'word'})
+      })
+    )
 
-        // Display a message box to the user
-        vscode.window.showInformationMessage('Imported?');
-    });
+    context.subscriptions.push(
+      vscode.commands.registerCommand('importjs.goto', () => {
+        run(null, {cmd: 'goto'})
+      })
+    )
 
-    // vscode.window.onDidChangeTextEditorSelection(() => {
-    //   console.log('selection changed', currentWord())
-    // })
-
-    // withModuleFinder(vscode, () => {
-    //     console.log('Done!')
-    // })
-
-    // exec(`importjs start --parent-pid=${process.pid}`, (error, stdout, stderr) => {
-    //     if (error) {
-    //         console.error(`exec error: ${error}`);
-    //         return;
-    //     }
-    //     console.log(`stdout: ${stdout}`);
-    //     console.log(`stderr: ${stderr}`);
-    // });
+    context.subscriptions.push(
+      vscode.commands.registerCommand('importjs.fix', () => {
+        run(null, {cmd: 'fix'})
+      })
+    )
 
     daemon = spawn('importjs', ['start', `--parent-pid=${process.pid}`], {
       cwd: projectDirectoryPath(),
-      // env: {},
     });
 
     daemon.stdout.on('data', handleMessage)
@@ -230,24 +181,11 @@ function activate(context) {
         console.log(`child process exited with code ${code}`);
     });
 
-    // console.log('ctx', context)
-
-    // setTimeout(() => {
-    //     console.log('Running it!')
-        // importWord()
-    // }, 1000)
-
-    // vscode.workspace.onDidOpenTextDocument
-    // console.log('Root', currentFilePath())
-
-    context.subscriptions.push(disposable);
-
     console.log('File path:', currentFilePath(), projectDirectoryPath())
 }
 
 exports.activate = activate;
 
-// this method is called when your extension is deactivated
 function deactivate() {
     if (daemon) {
         daemon.kill()
