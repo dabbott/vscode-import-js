@@ -1,67 +1,28 @@
-# vscode-import-js
+# VS Code ImportJS extension
 
-VSCode extension for import-js
+This is the VS Code extension for ImportJS.
 
-#### Disclaimer: very beta!
+## Installing
 
-## Features
+1. Install `import-js` globally:
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+    ```bash
+    npm install --global import-js
+    ```
 
-For example if there is an image subfolder under your extension project workspace:
+2. [Configure ImportJS](https://github.com/galooshi/import-js#configuration) for your
+   project
 
-\!\[feature X\]\(images/feature-x.png\)
+3. Open the root directory of your project (File -> Open…)
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+4. Import a file!
 
-## Requirements
+## Default keybindings
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+By default, `vscode-import-js` attempts to set up the following keybindings:
 
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on OSX or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on OSX or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (OSX) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Mapping       | Action      | Description
+--------------|-------------|---------------------------------------------------------------------
+`Cmd+Shift+j` | Import word | Import the module for the variable under the cursor.
+`Cmd+Shift+i` | Fix imports | Import any missing modules and remove any modules that are not used.
+`Cmd+Shift+k` | Go to word  | Go to the module of the variable under the cursor.
