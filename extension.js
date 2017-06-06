@@ -58,10 +58,11 @@ function projectDirectoryPath() {
 
 function handleMessage(data) {
   let json
+
+  // The first message we get is not json and will be ignored
   try {
     json = JSON.parse(data)
   } catch (e) {
-    console.log('Failed to parse json', data.slice(0, 80))
     return
   }
 
@@ -75,7 +76,7 @@ function handleMessage(data) {
   }
 
   if ('messages' in json && messages.length) {
-    vscode.window.showInformationMessage(messages.join('\n'));
+    vscode.window.setStatusBarMessage(messages.join('\n'), 3000);
   }
 
   if ('goto' in json) {
