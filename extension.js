@@ -78,6 +78,19 @@ function handleMessage(data) {
     vscode.window.showInformationMessage(messages.join('\n'));
   }
 
+  if ('goto' in json) {
+    console.log('opening', goto);
+    vscode.workspace.openTextDocument(goto).then(document => {
+      vscode.window.showTextDocument(document);
+    })
+    return;
+  }
+
+  // Always sync resolved imports, even if there are some remaining to resolve
+  if ('fileContent' in json) {
+    syncFileContents(fileContent)
+  }
+
   if ('unresolvedImports' in json && Object.keys(unresolvedImports).length > 0) {
     // unresolvedImports.test = [
     //   {displayName: 'test1', filePath: 't1'},
@@ -125,30 +138,6 @@ function handleMessage(data) {
 
       run('add', imports)
     })
-
-    // vscode.window.showQuickPick([
-    //   {
-    //     label: 'label',
-    //     description: 'description',
-    //     detail: 'detail',
-    //   }
-    // ], {
-    //   placeHolder: 'Resolve item',
-    // })
-
-    return;
-  }
-
-  if ('goto' in json) {
-    console.log('opening', goto);
-    vscode.workspace.openTextDocument(goto).then(document => {
-      vscode.window.showTextDocument(document);
-    })
-    return;
-  }
-
-  if ('fileContent' in json) {
-    syncFileContents(fileContent)
   }
 }
 
@@ -169,16 +158,6 @@ function startDaemon() {
   });
 
   daemon.stdout.on('data', handleMessage)
-
-  // daemon.stderr.on('data', (data) => {
-  //   console.log(`stderr: ${data}`);
-  // });
-
-  // daemon.on('close', (code) => {
-  //   console.log(`child process exited with code ${code}`);
-  // });
-
-  // console.log('File path:', currentFilePath(), projectDirectoryPath())
 }
 
 // this method is called when your extension is activated
@@ -195,12 +174,11 @@ function activate(context) {
   startDaemon()
 }
 
-exports.activate = activate;
-
 function deactivate() {
-    if (daemon) {
-        daemon.kill()
-    }
+  if (daemon) {
+    daemon.kill()
+  }
 }
 
+exports.activate = activate;
 exports.deactivate = deactivate;
