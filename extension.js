@@ -1,10 +1,10 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 const vscode = require("vscode");
-const { Position, Range, TextEdit, WorkspaceEdit } = vscode;
 
-const spawn = require("child_process").spawn;
-const exec = require("child_process").exec;
+const { WorkspaceEdit } = vscode;
+
+const { spawn, exec } = require("child_process");
 const oboe = require("oboe");
 
 const textEditsForDiff = require("./lib/textEditsForDiff");
@@ -135,6 +135,10 @@ function handleMessage(json) {
 }
 
 function run(command, commandArg) {
+  if (!daemon) {
+    startDaemon();
+  }
+
   const payload = {
     command: command,
     commandArg: commandArg,
@@ -142,25 +146,66 @@ function run(command, commandArg) {
     fileContent: currentFileContents()
   };
 
-  console.log("run", command, commandArg);
-
   daemon.stdin.write(JSON.stringify(payload) + "\n");
+
+  console.log('run', command, 'ok')
+}
+
+function getImportJSPath() {
+  return new Promise((resolve, reject) => {
+    try {
+      exec("which importjs", (error, stdout) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(stdout);
+      }
+    });
+    } catch (error) {
+      reject(error)
+    }
+  });
 }
 
 function startDaemon() {
-  daemon = spawn("importjs", ["start", `--parent-pid=${process.pid}`], {
-    cwd: projectDirectoryPath()
-  });
+  const failedToStart = error => {
+    daemon = null;
+    console.warn("Failed to start ImportJS server", error);
 
-  daemon.stdout.once("data", () => {
-    oboe(daemon.stdout).node("!", message => {
-      handleMessage(message);
+    getImportJSPath()
+      .then(() => {
+        vscode.window.showWarningMessage(
+          `Failed to start ImportJS server: ${error.message}`
+        );
+      })
+      .catch(() => {
+        vscode.window.showWarningMessage(
+          `Failed to start ImportJS server: importjs not found in PATH`
+        );
+      });
+  };
+
+  try {
+    daemon = spawn("importjs", ["start", `--parent-pid=${process.pid}`], {
+      cwd: projectDirectoryPath()
     });
+
+    daemon.on("error", failedToStart);
+    daemon.on("close", () => {
+      daemon = null
+    })
+  } catch (error) {
+    failedToStart(error);
+    return;
+  }
+
+  // Ignore the first message passed. This just gives the log path, and isn't json.
+  daemon.stdout.once("data", () => {
+    // After the first message, handle top-level JSON objects
+    oboe(daemon.stdout).node("!", handleMessage);
   });
 }
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
 function activate(context) {
   const subscriptions = [
     vscode.commands.registerCommand("importjs.word", () =>
