@@ -10,8 +10,7 @@ This is the VS Code extension for ImportJS.
     npm install --global import-js
     ```
 
-2. [Configure ImportJS](https://github.com/galooshi/import-js#configuration) for your
-   project
+2. [Configure ImportJS](https://github.com/galooshi/import-js#configuration) for your project
 
 3. Open the root directory of your project (File -> Open…)
 
