@@ -1,10 +1,14 @@
 {
     "name": "vscode-import-js",
-    "displayName": "vscode-import-js",
+    "displayName": "ImportJS",
     "description": "VSCode extension for ImportJS",
     "version": "0.0.2",
     "publisher": "dabbott",
     "repository": "dabbott/vscode-import-js",
+    "galleryBanner": {
+      "color": "#00A699",
+      "theme": "light"
+    },
     "engines": {
         "vscode": "^1.12.0"
     },
