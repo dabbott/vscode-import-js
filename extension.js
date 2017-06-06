@@ -8,18 +8,18 @@ const STATUS_BAR_DELAY = 3000;
 function handleMessage(json) {
   const { messages, fileContent, unresolvedImports, error, goto } = json;
 
-  if ("error" in json) {
+  if (error) {
     vscode.window.showWarningMessage(
       `ImportJS encountered an error: ${error.message}`
     );
     return;
   }
 
-  if ("messages" in json && messages.length > 0) {
+  if (messages && messages.length > 0) {
     vscode.window.setStatusBarMessage(messages.join("\n"), STATUS_BAR_DELAY);
   }
 
-  if ("goto" in json) {
+  if (goto) {
     vscode.workspace.openTextDocument(goto).then(document => {
       vscode.window.showTextDocument(document);
     });
@@ -31,47 +31,49 @@ function handleMessage(json) {
     syncFileContents(fileContent);
   }
 
-  if (
-    "unresolvedImports" in json && Object.keys(unresolvedImports).length > 0
-  ) {
-    const questions = Object.keys(unresolvedImports).map(name => {
-      const matches = unresolvedImports[name];
-      const options = matches.map(({ displayName, importPath, filePath }) => {
-        return { label: displayName, description: filePath, importPath };
-      });
-
-      return { name, options };
+  if (unresolvedImports && Object.keys(unresolvedImports).length > 0) {
+    const imports = Object.keys(unresolvedImports).map(name => {
+      return { name, options: unresolvedImports[name] };
     });
 
-    const getAnswers = (remaining, results = []) => {
+    // Ask the user to resolve each import, one at a time. When all imports are
+    // resolved, or when the user cancels, the chain of promises will resolve.
+    const requestResolutions = (remaining, resolutions = []) => {
       if (remaining.length === 0) {
-        return Promise.resolve(results);
+        return Promise.resolve(resolutions);
       }
 
       const { name, options } = remaining[0];
 
+      const pickerItems = options.map(({ displayName, filePath }, index) => {
+        return { label: displayName, description: filePath, index };
+      });
+
       return vscode.window
-        .showQuickPick(options, { placeHolder: `Import ${name} from` })
+        .showQuickPick(pickerItems, { placeHolder: `Import ${name} from` })
         .then(selected => {
           // If user cancels, still import the modules they've resolved so far
           if (!selected) {
-            return Promise.resolve(results);
+            return Promise.resolve(resolutions);
           }
 
-          const answer = { name, path: selected.importPath };
+          const { index } = selected;
+          const resolution = {
+            name,
+            path: unresolvedImports[name][index].importPath
+          };
 
-          return getAnswers(remaining.slice(1), results.concat(answer));
+          return requestResolutions(
+            remaining.slice(1),
+            resolutions.concat(resolution)
+          );
         });
     };
 
-    getAnswers(questions).then(answers => {
-      console.log("Answers!", answers);
-
-      const imports = answers.reduce((imports, answer) => {
-        const { name, path } = answer;
-
+    requestResolutions(imports).then(resolutions => {
+      const imports = resolutions.reduce((imports, resolution) => {
+        const { name, path } = resolution;
         imports[name] = path;
-
         return imports;
       }, {});
 
