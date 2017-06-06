@@ -1,6 +1,8 @@
-# vscode-import-js README
+# vscode-import-js
 
-This is the README for your extension "vscode-import-js". After writing up a brief description, we recommend including the following sections.
+VSCode extension for import-js
+
+#### Disclaimer: very beta!
 
 ## Features
 

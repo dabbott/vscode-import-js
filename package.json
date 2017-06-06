@@ -1,9 +1,10 @@
 {
   "name": "vscode-import-js",
   "displayName": "vscode-import-js",
-  "description": "VSCode plugin for ImportJS",
+  "description": "VSCode extension for ImportJS",
   "version": "0.0.1",
   "publisher": "dabbott",
+  "repository": "dabbott/vscode-import-js",
   "engines": {
     "vscode": "^1.12.0"
   },
@@ -57,7 +58,8 @@
   },
   "dependencies": {
     "diff": "^3.2.0",
-    "import-js": "^2.3.0"
+    "import-js": "^2.3.0",
+    "oboe": "^2.1.3"
   },
   "devDependencies": {
     "typescript": "^2.0.3",
