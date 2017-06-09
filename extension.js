@@ -45,29 +45,42 @@ function handleMessage(json) {
 
       const { name, options } = remaining[0];
 
-      const pickerItems = options.map(({ displayName, filePath }, index) => {
-        return { label: displayName, description: filePath, index };
+      const importStatements = options.reduce((result, { displayName }) => {
+        result[displayName] = result[displayName] ? result[displayName] + 1 : 1;
+        return result;
+      }, {});
+
+      // If there are indestinguishable import statements, we need to provide more info
+      // so the user can make a better decision
+      const hasDuplicates = Object.values(importStatements).some(
+        count => count > 1
+      );
+
+      let pickerItems = options.map(({ displayName, filePath }, index) => {
+        return {
+          label: displayName,
+          description: hasDuplicates ? filePath : undefined,
+          index
+        };
       });
 
-      return vscode.window
-        .showQuickPick(pickerItems, { placeHolder: `Import ${name} from` })
-        .then(selected => {
-          // If user cancels, still import the modules they've resolved so far
-          if (!selected) {
-            return Promise.resolve(resolutions);
-          }
+      return vscode.window.showQuickPick(pickerItems).then(selected => {
+        // If user cancels, still import the modules they've resolved so far
+        if (!selected) {
+          return Promise.resolve(resolutions);
+        }
 
-          const { index } = selected;
-          const resolution = {
-            name,
-            path: unresolvedImports[name][index].importPath
-          };
+        const { index } = selected;
+        const resolution = {
+          name,
+          path: unresolvedImports[name][index].importPath
+        };
 
-          return requestResolutions(
-            remaining.slice(1),
-            resolutions.concat(resolution)
-          );
-        });
+        return requestResolutions(
+          remaining.slice(1),
+          resolutions.concat(resolution)
+        );
+      });
     };
 
     requestResolutions(imports).then(resolutions => {
