@@ -1,6 +1,10 @@
 const vscode = require("vscode");
 
-const { syncFileContents, currentWord } = require("./lib/project");
+const {
+  currentFilePath,
+  currentWord,
+  syncFileContents
+} = require("./lib/project");
 const { start, kill, run, on } = require("./lib/daemon");
 
 const STATUS_BAR_DELAY = 3000;
@@ -45,24 +49,25 @@ function handleMessage(json) {
 
       const { name, options } = remaining[0];
 
-      const importStatements = options.reduce((result, { displayName }) => {
-        result[displayName] = result[displayName] ? result[displayName] + 1 : 1;
-        return result;
-      }, {});
+      let pickerItems = options
+        // Filter out duplicates
+        .reduce((uniqueImports, option) => {
+          const duplicate = uniqueImports.find(
+            ({ displayName }) => option.displayName === displayName
+          );
 
-      // If there are indestinguishable import statements, we need to provide more info
-      // so the user can make a better decision
-      const hasDuplicates = Object.values(importStatements).some(
-        count => count > 1
-      );
+          if (duplicate) {
+            return uniqueImports;
+          }
 
-      let pickerItems = options.map(({ displayName, filePath }, index) => {
-        return {
-          label: displayName,
-          description: hasDuplicates ? filePath : undefined,
-          index
-        };
-      });
+          return uniqueImports.concat(option);
+        }, [])
+        .map(({ displayName, importPath }) => {
+          return {
+            label: displayName,
+            importPath
+          };
+        });
 
       return vscode.window.showQuickPick(pickerItems).then(selected => {
         // If user cancels, still import the modules they've resolved so far
@@ -70,10 +75,10 @@ function handleMessage(json) {
           return Promise.resolve(resolutions);
         }
 
-        const { index } = selected;
+        const { importPath } = selected;
         const resolution = {
           name,
-          path: unresolvedImports[name][index].importPath
+          path: importPath
         };
 
         return requestResolutions(
