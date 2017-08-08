@@ -62,10 +62,10 @@ function handleMessage(json) {
 
           return uniqueImports.concat(option);
         }, [])
-        .map(({ displayName, importPath }) => {
+        .map(({ displayName, data }) => {
           return {
             label: displayName,
-            importPath
+            data
           };
         });
 
@@ -75,10 +75,10 @@ function handleMessage(json) {
           return Promise.resolve(resolutions);
         }
 
-        const { importPath } = selected;
+        const { data } = selected;
         const resolution = {
           name,
-          path: importPath
+          data
         };
 
         return requestResolutions(
@@ -90,8 +90,8 @@ function handleMessage(json) {
 
     requestResolutions(imports).then(resolutions => {
       const imports = resolutions.reduce((imports, resolution) => {
-        const { name, path } = resolution;
-        imports[name] = path;
+        const { name, data } = resolution;
+        imports[name] = data;
         return imports;
       }, {});
 
