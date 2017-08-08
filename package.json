@@ -2,7 +2,7 @@
     "name": "vscode-import-js",
     "displayName": "ImportJS",
     "description": "VSCode extension for ImportJS",
-    "version": "0.0.5",
+    "version": "0.0.7",
     "publisher": "dabbott",
     "repository": {
         "type": "git",
