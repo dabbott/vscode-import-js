@@ -2,7 +2,7 @@
     "name": "vscode-import-js",
     "displayName": "ImportJS",
     "description": "VSCode extension for ImportJS, a tool that helps you import javascript dependencies by automatically injecting import statements at the top of the file.",
-    "version": "0.0.8",
+    "version": "0.0.9",
     "publisher": "dabbott",
     "repository": {
         "type": "git",
